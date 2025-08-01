@@ -2,13 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getAuth, signOut } from 'firebase/auth';
 import { User } from 'firebase/auth';
+import { Firestore } from 'firebase/firestore';
 import { Survey, SurveyQuestion, SurveyResponse, Answer } from '../../models/types';
+import { FirebaseService } from '../services/firebase';
 
 interface SurveyPageProps {
   user: User;
+  db: Firestore;
 }
 
-const SurveyPage = ({ user }: SurveyPageProps) => {
+const SurveyPage = ({ user, db }: SurveyPageProps) => {
   const { surveyId } = useParams();
   const navigate = useNavigate();
   const auth = getAuth();
@@ -20,53 +23,74 @@ const SurveyPage = ({ user }: SurveyPageProps) => {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    // TODO: Fetch survey data from Firebase
-    // For now, using mock data
-    const mockSurvey: Survey = {
-      id: surveyId || 'default',
-      userId: 'mock-user',
-      title: 'Sample Survey',
-      description: 'This is a sample survey for testing purposes',
-      groupId: 'mock-group',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      isActive: true,
-      status: 'published'
+    const fetchSurveyData = async () => {
+      if (!surveyId) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const firebaseService = new FirebaseService(db);
+        
+        // Fetch survey data
+        const surveyData = await firebaseService.getSurvey(surveyId);
+        if (!surveyData) {
+          console.error('Survey not found');
+          setLoading(false);
+          return;
+        }
+        
+        setSurvey(surveyData);
+
+        // Fetch survey questions
+        const questionsData = await firebaseService.getSurveyQuestions(surveyId);
+        console.log('Questions fetched from Firebase:', questionsData);
+        
+        if (questionsData.length > 0) {
+          setQuestions(questionsData);
+        } else {
+          console.log('No questions found in Firebase, using fallback questions');
+          // Fallback to mock questions if no questions found
+          const mockQuestions: SurveyQuestion[] = [
+            {
+              id: '1',
+              type: 'text',
+              question: 'What is your name?',
+              required: true
+            },
+            {
+              id: '2',
+              type: 'multipleChoice',
+              question: 'How would you rate our service?',
+              required: true,
+              options: ['Excellent', 'Good', 'Average', 'Poor']
+            },
+            {
+              id: '3',
+              type: 'rating',
+              question: 'Rate your overall experience (1-5)',
+              required: true,
+              maxRating: 5
+            },
+            {
+              id: '4',
+              type: 'comment',
+              question: 'Any additional comments?',
+              required: false
+            }
+          ];
+          setQuestions(mockQuestions);
+        }
+
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching survey data:', error);
+        setLoading(false);
+      }
     };
 
-    const mockQuestions: SurveyQuestion[] = [
-      {
-        id: '1',
-        type: 'text',
-        question: 'What is your name?',
-        required: true
-      },
-      {
-        id: '2',
-        type: 'multipleChoice',
-        question: 'How would you rate our service?',
-        required: true,
-        options: ['Excellent', 'Good', 'Average', 'Poor']
-      },
-      {
-        id: '3',
-        type: 'rating',
-        question: 'Rate your overall experience (1-5)',
-        required: true,
-        maxRating: 5
-      },
-      {
-        id: '4',
-        type: 'comment',
-        question: 'Any additional comments?',
-        required: false
-      }
-    ];
-
-    setSurvey(mockSurvey);
-    setQuestions(mockQuestions);
-    setLoading(false);
-  }, [surveyId]);
+    fetchSurveyData();
+  }, [surveyId, db]);
 
   const handleAnswerChange = (questionId: string, value: any) => {
     setAnswers(prev => ({
@@ -80,7 +104,6 @@ const SurveyPage = ({ user }: SurveyPageProps) => {
     setSubmitting(true);
 
     try {
-      // TODO: Submit survey response to Firebase
       const response: SurveyResponse = {
         id: `response-${Date.now()}`,
         userId: user.uid,
@@ -95,7 +118,11 @@ const SurveyPage = ({ user }: SurveyPageProps) => {
         updatedAt: new Date().toISOString()
       };
 
-      console.log('Survey response:', response);
+      // Save response to Firebase
+      const firebaseService = new FirebaseService(db);
+      const responseId = await firebaseService.saveSurveyResponse(response);
+
+      console.log('Survey response saved with ID:', responseId);
       
       // Show success message
       alert('Survey submitted successfully!');

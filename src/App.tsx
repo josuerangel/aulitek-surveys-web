@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { initializeApp } from 'firebase/app'
 import { getAuth, onAuthStateChanged, User } from 'firebase/auth'
+import { getFirestore } from 'firebase/firestore'
 import LoginPage from './components/LoginPage'
 import SurveyPage from './components/SurveyPage'
 import LoadingSpinner from './components/LoadingSpinner'
@@ -20,6 +21,7 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const db = getFirestore(app);
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -44,7 +46,7 @@ function App() {
         <Route 
           path="/survey/:surveyId" 
           element={
-            user ? <SurveyPage user={user} /> : <Navigate to="/login" replace />
+            user ? <SurveyPage user={user} db={db} /> : <Navigate to="/login" replace />
           } 
         />
         <Route 

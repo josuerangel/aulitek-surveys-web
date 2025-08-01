@@ -1,20 +1,21 @@
 import React from 'react';
 import { getAuth, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { useNavigate, useLocation } from 'react-router-dom';
 
-const LoginPage = () => {
+interface LoginPageProps {
+  pendingSurveyId: string | null;
+  setPendingSurveyId: (id: string | null) => void;
+}
+
+const LoginPage = ({ pendingSurveyId }: LoginPageProps) => {
   const auth = getAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
 
   const handleGoogleLogin = async () => {
     try {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
       
-      // After successful login, redirect to the survey page
-      const surveyId = location.state?.surveyId || 'default';
-      navigate(`/survey/${surveyId}`);
+      // After successful login, the App component will handle the redirect
+      // based on the pendingSurveyId state
     } catch (error) {
       console.error('Error signing in with Google:', error);
     }

@@ -37,7 +37,7 @@ export interface Survey extends BaseModel {
 }
 
 // Survey question types
-export type QuestionType = 'text' | 'multipleChoice' | 'yesNo' | 'rating' | 'comment' | 'date';
+export type QuestionType = 'text' | 'multipleChoice' | 'choice' | 'yesNo' | 'boolean' | 'rating' | 'comment' | 'date';
 
 // Survey question model
 export interface SurveyQuestion {

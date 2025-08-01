@@ -148,6 +148,8 @@ const SurveyPage = ({ user, db }: SurveyPageProps) => {
   };
 
   const renderQuestion = (question: SurveyQuestion) => {
+    console.log('Rendering question:', question.id, 'Type:', question.type);
+    
     switch (question.type) {
       case 'text':
         return (
@@ -161,6 +163,7 @@ const SurveyPage = ({ user, db }: SurveyPageProps) => {
         );
       
       case 'multipleChoice':
+      case 'choice':
         return (
           <select
             value={answers[question.id] || ''}
@@ -173,6 +176,35 @@ const SurveyPage = ({ user, db }: SurveyPageProps) => {
               <option key={index} value={option}>{option}</option>
             ))}
           </select>
+        );
+      
+      case 'yesNo':
+      case 'boolean':
+        return (
+          <div className="yes-no-container">
+            <label className="radio-label">
+              <input
+                type="radio"
+                name={`question-${question.id}`}
+                value="yes"
+                checked={answers[question.id] === 'yes'}
+                onChange={(e) => handleAnswerChange(question.id, e.target.value)}
+                required={question.required}
+              />
+              Yes
+            </label>
+            <label className="radio-label">
+              <input
+                type="radio"
+                name={`question-${question.id}`}
+                value="no"
+                checked={answers[question.id] === 'no'}
+                onChange={(e) => handleAnswerChange(question.id, e.target.value)}
+                required={question.required}
+              />
+              No
+            </label>
+          </div>
         );
       
       case 'rating':
@@ -202,8 +234,22 @@ const SurveyPage = ({ user, db }: SurveyPageProps) => {
           />
         );
       
+      case 'date':
+        return (
+          <input
+            type="date"
+            value={answers[question.id] || ''}
+            onChange={(e) => handleAnswerChange(question.id, e.target.value)}
+            required={question.required}
+            min={question.minDate}
+            max={question.maxDate}
+            className="form-input"
+          />
+        );
+      
       default:
-        return <p>Unsupported question type</p>;
+        console.error('Unsupported question type:', question.type, 'for question:', question.id);
+        return <p>Unsupported question type: {question.type}</p>;
     }
   };
 

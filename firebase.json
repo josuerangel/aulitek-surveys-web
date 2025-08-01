@@ -1,7 +1,7 @@
 {
   "hosting": {
     "site": "aulitek-surveys-web",
-    "public": "public",
+    "public": "dist",
     "ignore": [
       "firebase.json",
       "**/.*",

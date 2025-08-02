@@ -77,8 +77,10 @@ export class FirebaseService {
   // Save survey response
   async saveSurveyResponse(response: SurveyResponse): Promise<string> {
     try {
-      const responsesCollectionRef = collection(this.db, 'surveyResponses');
-      const docRef = await addDoc(responsesCollectionRef, response);
+      // Save only to survey-specific subcollection for better organization and access control
+      const surveyResponsesRef = collection(this.db, 'surveys', response.surveyId, 'responses');
+      const docRef = await addDoc(surveyResponsesRef, response);
+      
       return docRef.id;
     } catch (error) {
       console.error('Error saving survey response:', error);
@@ -89,10 +91,9 @@ export class FirebaseService {
   // Check if user has already responded to this survey
   async hasUserResponded(surveyId: string, userId: string): Promise<boolean> {
     try {
-      const responsesCollectionRef = collection(this.db, 'surveyResponses');
+      const responsesCollectionRef = collection(this.db, 'surveys', surveyId, 'responses');
       const q = query(
         responsesCollectionRef,
-        where('surveyId', '==', surveyId),
         where('userId', '==', userId)
       );
       
@@ -101,6 +102,137 @@ export class FirebaseService {
     } catch (error) {
       console.error('Error checking user response:', error);
       return false;
+    }
+  }
+
+  // Get all responses for a survey (for survey creator)
+  async getSurveyResponses(surveyId: string): Promise<SurveyResponse[]> {
+    try {
+      const responsesCollectionRef = collection(this.db, 'surveys', surveyId, 'responses');
+      const querySnapshot = await getDocs(responsesCollectionRef);
+      
+      const responses: SurveyResponse[] = [];
+      querySnapshot.forEach((doc) => {
+        const responseData = doc.data() as SurveyResponse;
+        responses.push({ ...responseData, id: doc.id });
+      });
+      
+      return responses.sort((a, b) => 
+        new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
+      );
+    } catch (error) {
+      console.error('Error fetching survey responses:', error);
+      throw error;
+    }
+  }
+
+  // Check if user is the creator of a survey
+  async isSurveyCreator(surveyId: string, userId: string): Promise<boolean> {
+    try {
+      const survey = await this.getSurvey(surveyId);
+      return survey?.userId === userId;
+    } catch (error) {
+      console.error('Error checking survey creator:', error);
+      return false;
+    }
+  }
+
+  // Get response statistics for a survey
+  async getSurveyStats(surveyId: string): Promise<{
+    totalResponses: number;
+    averageCompletionTime?: number;
+    questionStats: Record<string, any>;
+  }> {
+    try {
+      const responses = await this.getSurveyResponses(surveyId);
+      
+      const stats = {
+        totalResponses: responses.length,
+        questionStats: {} as Record<string, any>
+      };
+
+      // Calculate question statistics
+      responses.forEach(response => {
+        response.answers.forEach(answer => {
+          if (!stats.questionStats[answer.questionId]) {
+            stats.questionStats[answer.questionId] = {
+              responses: 0,
+              values: []
+            };
+          }
+          stats.questionStats[answer.questionId].responses++;
+          stats.questionStats[answer.questionId].values.push(answer.value);
+        });
+      });
+
+      return stats;
+    } catch (error) {
+      console.error('Error calculating survey stats:', error);
+      throw error;
+    }
+  }
+
+  // Get all surveys created by a user
+  async getUserSurveys(userId: string): Promise<Survey[]> {
+    try {
+      const surveysCollectionRef = collection(this.db, 'surveys');
+      const q = query(
+        surveysCollectionRef,
+        where('userId', '==', userId)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const surveys: Survey[] = [];
+      
+      querySnapshot.forEach((doc) => {
+        const surveyData = doc.data() as Survey;
+        surveys.push({ ...surveyData, id: doc.id });
+      });
+      
+      return surveys.sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+    } catch (error) {
+      console.error('Error fetching user surveys:', error);
+      throw error;
+    }
+  }
+
+  // Get aggregated analytics for a user's surveys
+  async getUserAnalytics(userId: string): Promise<{
+    totalSurveys: number;
+    totalResponses: number;
+    averageResponsesPerSurvey: number;
+    surveys: Array<{
+      id: string;
+      title: string;
+      responseCount: number;
+    }>;
+  }> {
+    try {
+      const userSurveys = await this.getUserSurveys(userId);
+      let totalResponses = 0;
+      const surveysWithCounts = [];
+
+      for (const survey of userSurveys) {
+        const responses = await this.getSurveyResponses(survey.id);
+        totalResponses += responses.length;
+        surveysWithCounts.push({
+          id: survey.id,
+          title: survey.title,
+          responseCount: responses.length
+        });
+      }
+
+      return {
+        totalSurveys: userSurveys.length,
+        totalResponses,
+        averageResponsesPerSurvey: userSurveys.length > 0 ? totalResponses / userSurveys.length : 0,
+        surveys: surveysWithCounts
+      };
+    } catch (error) {
+      console.error('Error calculating user analytics:', error);
+      throw error;
     }
   }
 } 

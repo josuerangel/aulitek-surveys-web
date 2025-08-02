@@ -60,10 +60,10 @@ Contains individual question documents for a specific survey.
 }
 ```
 
-#### 3. `surveyResponses` Collection
-Each document represents a survey response.
+#### 3. `surveys/{surveyId}/responses` Subcollection
+Contains survey responses for a specific survey.
 
-**Document Structure:**
+**Response Document Structure:**
 ```json
 {
   "id": "response-1234567890",
@@ -94,6 +94,9 @@ Each document represents a survey response.
 }
 ```
 
+#### 4. Analytics Collection (Optional)
+For advanced analytics, you can create a separate collection with aggregated data, but responses are stored only once in the survey subcollection.
+
 ## Setup Instructions
 
 ### 1. Enable Firestore Database
@@ -103,27 +106,39 @@ Each document represents a survey response.
 4. Select a location close to your users
 
 ### 2. Set Up Security Rules
-In Firestore Database → Rules, use these rules for development:
+In Firestore Database → Rules, use these rules for proper access control:
 
 ```javascript
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow read access to surveys
+    // Surveys collection
     match /surveys/{surveyId} {
-      allow read: if true;
+      // Anyone can read published surveys
+      allow read: if resource.data.isActive == true;
+      // Only authenticated users can create/edit surveys
       allow write: if request.auth != null;
+      
+      // Survey questions - public read for active surveys
+      match /questions/{questionId} {
+        allow read: if get(/databases/$(database)/documents/surveys/$(surveyId)).data.isActive == true;
+        allow write: if request.auth != null && 
+          request.auth.uid == get(/databases/$(database)/documents/surveys/$(surveyId)).data.userId;
+      }
+      
+      // Survey responses - only survey creator can read
+      match /responses/{responseId} {
+        allow read: if request.auth != null && 
+          request.auth.uid == get(/databases/$(database)/documents/surveys/$(surveyId)).data.userId;
+        allow create: if request.auth != null;
+        allow update, delete: if false; // No modifications allowed
+      }
     }
     
-    // Allow read access to survey questions
-    match /surveys/{surveyId}/questions/{document=**} {
-      allow read: if true;
+    // Analytics collection (if needed for global queries)
+    match /analytics/{document=**} {
+      allow read: if request.auth != null;
       allow write: if request.auth != null;
-    }
-    
-    // Allow authenticated users to create survey responses
-    match /surveyResponses/{responseId} {
-      allow read, write: if request.auth != null;
     }
   }
 }
@@ -163,6 +178,22 @@ VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
 VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 VITE_FIREBASE_APP_ID=your_app_id
 ```
+
+## Access Control Summary
+
+### Survey Access:
+- **Public Read**: Anyone can read published surveys
+- **Creator Write**: Only survey creator can modify surveys
+
+### Response Access:
+- **Submit**: Any authenticated user can submit responses
+- **Read**: Only survey creator can read responses to their surveys
+- **No Modifications**: Responses cannot be updated or deleted
+
+### Security Benefits:
+- Survey creators can only access responses to their own surveys
+- Users can only submit responses, not modify them
+- Proper separation of concerns with subcollections
 
 ## Troubleshooting
 

@@ -94,7 +94,27 @@ Contains survey responses for a specific survey.
 }
 ```
 
-#### 4. Analytics Collection (Optional)
+#### 4. `students` Collection
+Contains student records created automatically from survey responses.
+
+**Student Document Structure:**
+```json
+{
+  "id": "student-1234567890",
+  "userId": "user456",
+  "firstName": "John",
+  "lastName": "Doe",
+  "groupId": "group123",
+  "birthDate": "2000-01-01",
+  "parentName": "Jane Doe",
+  "parentEmail": "jane@example.com",
+  "parentPhone": "+1234567890",
+  "createdAt": "2024-01-15T10:30:00.000Z",
+  "updatedAt": "2024-01-15T10:30:00.000Z"
+}
+```
+
+#### 5. Analytics Collection (Optional)
 For advanced analytics, you can create a separate collection with aggregated data, but responses are stored only once in the survey subcollection.
 
 ## Setup Instructions
@@ -133,6 +153,15 @@ service cloud.firestore {
         allow create: if request.auth != null;
         allow update, delete: if false; // No modifications allowed
       }
+    }
+    
+    // Students collection
+    match /students/{studentId} {
+      allow read: if request.auth != null && 
+        (request.auth.uid == resource.data.userId || 
+         request.auth.uid == get(/databases/$(database)/documents/groups/$(resource.data.groupId)).data.userId);
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
     }
     
     // Analytics collection (if needed for global queries)

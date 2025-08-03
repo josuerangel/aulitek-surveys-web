@@ -1,5 +1,5 @@
 import { Firestore, doc, getDoc, collection, addDoc, query, where, getDocs } from 'firebase/firestore';
-import { Survey, SurveyQuestion, SurveyResponse } from '../../models/types';
+import { Survey, SurveyQuestion, SurveyResponse, Student } from '../../models/types';
 
 export class FirebaseService {
   private db: Firestore;
@@ -74,12 +74,34 @@ export class FirebaseService {
     }
   }
 
-  // Save survey response
+  // Save survey response and create student if needed
   async saveSurveyResponse(response: SurveyResponse): Promise<string> {
     try {
-      // Save only to survey-specific subcollection for better organization and access control
+      // Get the survey to access groupId
+      const survey = await this.getSurvey(response.surveyId);
+      if (!survey) {
+        throw new Error('Survey not found');
+      }
+
+      // Get survey questions to find name questions
+      const questions = await this.getSurveyQuestions(response.surveyId);
+      
+      // Try to create or find student based on name questions
+      let studentId = response.studentId;
+      const student = await this.createOrFindStudent(response, questions, survey.groupId);
+      if (student) {
+        studentId = student.id;
+      }
+
+      // Update response with the student ID
+      const updatedResponse = {
+        ...response,
+        studentId: studentId
+      };
+
+      // Save the response
       const surveyResponsesRef = collection(this.db, 'surveys', response.surveyId, 'responses');
-      const docRef = await addDoc(surveyResponsesRef, response);
+      const docRef = await addDoc(surveyResponsesRef, updatedResponse);
       
       return docRef.id;
     } catch (error) {
@@ -232,6 +254,135 @@ export class FirebaseService {
       };
     } catch (error) {
       console.error('Error calculating user analytics:', error);
+      throw error;
+    }
+  }
+
+  // Create or find student based on name questions in survey
+  private async createOrFindStudent(
+    response: SurveyResponse, 
+    questions: SurveyQuestion[], 
+    groupId: string
+  ): Promise<Student | null> {
+    try {
+      // Find name-related questions
+      const nameQuestions = questions.filter(q => 
+        q.type === 'text' && 
+        (q.question.toLowerCase().includes('name') || 
+         q.question.toLowerCase().includes('nombre') ||
+         q.question.toLowerCase().includes('nombre completo'))
+      );
+
+      if (nameQuestions.length === 0) {
+        console.log('No name questions found in survey');
+        return null;
+      }
+
+      // Extract name from response
+      let fullName = '';
+      for (const nameQuestion of nameQuestions) {
+        const answer = response.answers.find(a => a.questionId === nameQuestion.id);
+        if (answer && typeof answer.value === 'string') {
+          fullName = answer.value.trim();
+          break;
+        }
+      }
+
+      if (!fullName) {
+        console.log('No name found in response');
+        return null;
+      }
+
+      // Parse name into first and last name
+      const nameParts = fullName.split(' ').filter(part => part.length > 0);
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
+      // Check if student already exists in this group
+      const existingStudent = await this.findStudentByName(firstName, lastName, groupId);
+      if (existingStudent) {
+        console.log('Student already exists:', existingStudent.id);
+        return existingStudent;
+      }
+
+      // Create new student
+      const newStudent: Omit<Student, 'id'> = {
+        userId: response.userId,
+        firstName: firstName,
+        lastName: lastName,
+        groupId: groupId,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      const studentsCollectionRef = collection(this.db, 'students');
+      const docRef = await addDoc(studentsCollectionRef, newStudent);
+      
+      const createdStudent: Student = {
+        ...newStudent,
+        id: docRef.id
+      };
+
+      console.log('Created new student:', createdStudent.id);
+      return createdStudent;
+    } catch (error) {
+      console.error('Error creating/finding student:', error);
+      return null;
+    }
+  }
+
+  // Find student by name in a specific group
+  private async findStudentByName(
+    firstName: string, 
+    lastName: string, 
+    groupId: string
+  ): Promise<Student | null> {
+    try {
+      const studentsCollectionRef = collection(this.db, 'students');
+      const q = query(
+        studentsCollectionRef,
+        where('firstName', '==', firstName),
+        where('lastName', '==', lastName),
+        where('groupId', '==', groupId)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      
+      if (!querySnapshot.empty) {
+        const doc = querySnapshot.docs[0];
+        const studentData = doc.data() as Student;
+        return { ...studentData, id: doc.id };
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error finding student by name:', error);
+      return null;
+    }
+  }
+
+  // Get all students in a group
+  async getGroupStudents(groupId: string): Promise<Student[]> {
+    try {
+      const studentsCollectionRef = collection(this.db, 'students');
+      const q = query(
+        studentsCollectionRef,
+        where('groupId', '==', groupId)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const students: Student[] = [];
+      
+      querySnapshot.forEach((doc) => {
+        const studentData = doc.data() as Student;
+        students.push({ ...studentData, id: doc.id });
+      });
+      
+      return students.sort((a, b) => 
+        `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)
+      );
+    } catch (error) {
+      console.error('Error fetching group students:', error);
       throw error;
     }
   }

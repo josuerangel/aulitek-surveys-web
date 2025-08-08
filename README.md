@@ -7,6 +7,7 @@ A React-based web application for collecting survey responses with Google authen
 - Google OAuth authentication
 - Dynamic survey forms based on survey ID from URL
 - Support for multiple question types (text, multiple choice, rating, comment)
+- **One-time survey response validation** - Users can only answer each survey once
 - Responsive design
 - Firebase integration
 
@@ -71,6 +72,7 @@ npm run preview
    - Fill out the survey questions
    - Click "Submit Survey" when finished
    - You'll be signed out and redirected to the login page
+   - **Note**: Each user can only answer a survey once. If you try to access a survey you've already answered, you'll see a friendly message indicating that you've already participated.
 
 ## Project Structure
 

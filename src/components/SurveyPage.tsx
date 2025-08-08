@@ -21,6 +21,7 @@ const SurveyPage = ({ user, db }: SurveyPageProps) => {
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [alreadyAnswered, setAlreadyAnswered] = useState(false);
 
   useEffect(() => {
     const fetchSurveyData = async () => {
@@ -32,7 +33,7 @@ const SurveyPage = ({ user, db }: SurveyPageProps) => {
       try {
         const firebaseService = new FirebaseService(db);
         
-        // Fetch survey data
+        // Fetch survey data first (needed for both cases)
         const surveyData = await firebaseService.getSurvey(surveyId);
         if (!surveyData) {
           console.error('Survey not found');
@@ -41,6 +42,14 @@ const SurveyPage = ({ user, db }: SurveyPageProps) => {
         }
         
         setSurvey(surveyData);
+        
+        // Check if user has already responded to this survey
+        const hasResponded = await firebaseService.hasUserResponded(surveyId, user.uid);
+        if (hasResponded) {
+          setAlreadyAnswered(true);
+          setLoading(false);
+          return;
+        }
 
         // Fetch survey questions
         const questionsData = await firebaseService.getSurveyQuestions(surveyId);
@@ -90,7 +99,7 @@ const SurveyPage = ({ user, db }: SurveyPageProps) => {
     };
 
     fetchSurveyData();
-  }, [surveyId, db]);
+  }, [surveyId, db, user.uid]);
 
   const handleAnswerChange = (questionId: string, value: any) => {
     setAnswers(prev => ({
@@ -259,6 +268,36 @@ const SurveyPage = ({ user, db }: SurveyPageProps) => {
 
   if (!survey) {
     return <div className="error">Encuesta no encontrada</div>;
+  }
+
+  if (alreadyAnswered) {
+    return (
+      <div className="survey-page">
+        <div className="survey-header">
+          <div className="user-info">
+            <span>Bienvenido, {user.displayName || user.email}</span>
+            <button onClick={handleSignOut} className="sign-out-btn">
+              Cerrar Sesión
+            </button>
+          </div>
+        </div>
+
+        <div className="survey-container">
+          <div className="survey-title">
+            <h1>{survey.title}</h1>
+            {survey.description && <p>{survey.description}</p>}
+          </div>
+
+          <div className="survey-message">
+            <p>¡Ya has respondido esta encuesta!</p>
+            <p>Gracias por tu participación.</p>
+            <button onClick={handleSignOut} className="sign-out-btn">
+              Volver al Inicio
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

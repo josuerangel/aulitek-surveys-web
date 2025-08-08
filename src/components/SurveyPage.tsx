@@ -125,14 +125,14 @@ const SurveyPage = ({ user, db }: SurveyPageProps) => {
       console.log('Survey response saved with ID:', responseId);
       
       // Show success message
-      alert('Survey submitted successfully!');
+      alert('¡Encuesta enviada exitosamente!');
       
       // Sign out and redirect to login
       await signOut(auth);
       navigate('/login');
     } catch (error) {
       console.error('Error submitting survey:', error);
-      alert('Error submitting survey. Please try again.');
+      alert('Error al enviar la encuesta. Por favor, inténtalo de nuevo.');
     } finally {
       setSubmitting(false);
     }
@@ -171,7 +171,7 @@ const SurveyPage = ({ user, db }: SurveyPageProps) => {
             required={question.required}
             className="form-select"
           >
-            <option value="">Select an option</option>
+            <option value="">Selecciona una opción</option>
             {question.options?.map((option, index) => (
               <option key={index} value={option}>{option}</option>
             ))}
@@ -191,7 +191,7 @@ const SurveyPage = ({ user, db }: SurveyPageProps) => {
                 onChange={(e) => handleAnswerChange(question.id, e.target.value)}
                 required={question.required}
               />
-              Yes
+              Sí
             </label>
             <label className="radio-label">
               <input
@@ -249,25 +249,25 @@ const SurveyPage = ({ user, db }: SurveyPageProps) => {
       
       default:
         console.error('Unsupported question type:', question.type, 'for question:', question.id);
-        return <p>Unsupported question type: {question.type}</p>;
+        return <p>Tipo de pregunta no soportado: {question.type}</p>;
     }
   };
 
   if (loading) {
-    return <div className="loading">Loading survey...</div>;
+    return <div className="loading">Cargando encuesta...</div>;
   }
 
   if (!survey) {
-    return <div className="error">Survey not found</div>;
+    return <div className="error">Encuesta no encontrada</div>;
   }
 
   return (
     <div className="survey-page">
       <div className="survey-header">
         <div className="user-info">
-          <span>Welcome, {user.displayName || user.email}</span>
+          <span>Bienvenido, {user.displayName || user.email}</span>
           <button onClick={handleSignOut} className="sign-out-btn">
-            Sign Out
+            Cerrar Sesión
           </button>
         </div>
       </div>
@@ -295,7 +295,7 @@ const SurveyPage = ({ user, db }: SurveyPageProps) => {
               disabled={submitting}
               className="submit-btn"
             >
-              {submitting ? 'Submitting...' : 'Submit Survey'}
+              {submitting ? 'Enviando...' : 'Enviar Encuesta'}
             </button>
           </div>
         </form>

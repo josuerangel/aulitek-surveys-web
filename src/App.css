@@ -123,6 +123,40 @@
   font-size: 1.1rem;
 }
 
+.survey-message {
+  background: white;
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.survey-message p {
+  color: #666;
+  font-size: 1.2rem;
+  margin-bottom: 15px;
+  line-height: 1.6;
+}
+
+.survey-message p:first-child {
+  color: #28a745;
+  font-weight: 600;
+  font-size: 1.4rem;
+  margin-bottom: 20px;
+}
+
+.survey-message .sign-out-btn {
+  background: #667eea;
+  margin-top: 20px;
+  padding: 12px 24px;
+  font-size: 1rem;
+}
+
+.survey-message .sign-out-btn:hover {
+  background: #5a6fd8;
+}
+
 .survey-form {
   background: white;
   padding: 40px;

@@ -58,6 +58,29 @@ npm run build
 npm run preview
 ```
 
+### Deployment Commands
+
+#### Quick Deploy to Production
+```bash
+npm run deploy
+```
+
+#### Deploy Only Hosting (Production)
+```bash
+npm run deploy:prod
+```
+
+#### Check Build Before Deploying
+```bash
+npm run build:check
+```
+
+#### Firebase Setup Commands
+```bash
+npm run firebase:login    # Login to Firebase
+npm run firebase:init     # Initialize Firebase hosting
+```
+
 ## Usage
 
 1. **Access a Survey:**

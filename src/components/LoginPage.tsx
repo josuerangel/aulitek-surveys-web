@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { getAuth, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 
 interface LoginPageProps {
@@ -6,7 +6,7 @@ interface LoginPageProps {
   setPendingSurveyId: (id: string | null) => void;
 }
 
-const LoginPage = ({ pendingSurveyId }: LoginPageProps) => {
+const LoginPage = ({ }: LoginPageProps) => {
   const auth = getAuth();
 
   const handleGoogleLogin = async () => {

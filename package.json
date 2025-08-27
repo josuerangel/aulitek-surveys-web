@@ -8,6 +8,11 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "deploy": "npm run build && firebase deploy",
+    "deploy:prod": "npm run build && firebase deploy --only hosting",
+    "deploy:staging": "npm run build && firebase deploy --only hosting:staging",
+    "build:check": "npm run build && echo '✅ Build successful - ready to deploy'",
+    "firebase:login": "firebase login",
+    "firebase:init": "firebase init hosting",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

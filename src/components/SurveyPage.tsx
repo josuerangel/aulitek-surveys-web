@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getAuth, signOut } from 'firebase/auth';
 import { User } from 'firebase/auth';
 import { Firestore } from 'firebase/firestore';
-import { Survey, SurveyQuestion, SurveyResponse, Answer } from '../../models/types';
+import { Survey, SurveyQuestion, SurveyResponse } from '../../models/types';
 import { FirebaseService } from '../services/firebase';
 
 interface SurveyPageProps {

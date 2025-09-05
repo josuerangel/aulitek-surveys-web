@@ -65,27 +65,35 @@ const SurveyPage = ({ user, db }: SurveyPageProps) => {
               id: '1',
               type: 'text',
               question: 'What is your name?',
-              required: true
+              required: true,
+              createdAt: new Date(Date.now() - 3000).toISOString(), // 3 seconds ago
+              updatedAt: new Date(Date.now() - 3000).toISOString()
             },
             {
               id: '2',
               type: 'multipleChoice',
               question: 'How would you rate our service?',
               required: true,
-              options: ['Excellent', 'Good', 'Average', 'Poor']
+              options: ['Excellent', 'Good', 'Average', 'Poor'],
+              createdAt: new Date(Date.now() - 2000).toISOString(), // 2 seconds ago
+              updatedAt: new Date(Date.now() - 2000).toISOString()
             },
             {
               id: '3',
               type: 'rating',
               question: 'Rate your overall experience (1-5)',
               required: true,
-              maxRating: 5
+              maxRating: 5,
+              createdAt: new Date(Date.now() - 1000).toISOString(), // 1 second ago
+              updatedAt: new Date(Date.now() - 1000).toISOString()
             },
             {
               id: '4',
               type: 'comment',
               question: 'Any additional comments?',
-              required: false
+              required: false,
+              createdAt: new Date().toISOString(), // Now
+              updatedAt: new Date().toISOString()
             }
           ];
           setQuestions(mockQuestions);
@@ -115,9 +123,9 @@ const SurveyPage = ({ user, db }: SurveyPageProps) => {
     try {
       const response: SurveyResponse = {
         id: `response-${Date.now()}`,
-        userId: user.uid,
+        userId: user.uid, // Google authenticated user who is submitting
         surveyId: surveyId || 'default',
-        studentId: user.uid, // Using user ID as student ID for now
+        studentId: user.uid, // Temporary - will be replaced with actual student ID from name question
         answers: Object.entries(answers).map(([questionId, value]) => ({
           questionId,
           value: value
@@ -126,6 +134,13 @@ const SurveyPage = ({ user, db }: SurveyPageProps) => {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
+
+      console.log('Creating survey response:', {
+        userId: user.uid,
+        userEmail: user.email,
+        userDisplayName: user.displayName,
+        note: 'userId is the Google authenticated user submitting the survey'
+      });
 
       // Save response to Firebase
       const firebaseService = new FirebaseService(db);

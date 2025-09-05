@@ -49,20 +49,26 @@ export class FirebaseService {
             question: questionData.question || questionData.text || questionData.questionText,
             required: questionData.required || false,
             options: questionData.options || questionData.choices,
-            maxRating: questionData.maxRating || questionData.ratingMax
+            maxRating: questionData.maxRating || questionData.ratingMax,
+            createdAt: questionData.createdAt || new Date().toISOString(),
+            updatedAt: questionData.updatedAt || new Date().toISOString()
           };
           
           questions.push(question);
         });
         
-        // Sort questions by order if available, otherwise by ID
+        // Sort questions by creation date (first created goes at the top)
         const sortedQuestions = questions.sort((a, b) => {
-          const orderA = parseInt(a.id) || 0;
-          const orderB = parseInt(b.id) || 0;
-          return orderA - orderB;
+          const dateA = new Date(a.createdAt || 0).getTime();
+          const dateB = new Date(b.createdAt || 0).getTime();
+          return dateA - dateB; // Ascending order: oldest first (top)
         });
         
-        console.log('Found questions as individual documents:', sortedQuestions);
+        console.log('Questions sorted by creation date (oldest first):');
+        sortedQuestions.forEach((q, index) => {
+          console.log(`  ${index + 1}. "${q.question}" (created: ${q.createdAt})`);
+        });
+        
         return sortedQuestions;
       }
 
@@ -88,7 +94,7 @@ export class FirebaseService {
       
       // Try to create or find student based on name questions
       let studentId = response.studentId;
-      const student = await this.createOrFindStudent(response, questions, survey.groupId);
+      const student = await this.createOrFindStudent(response, questions, survey.groupId, survey.userId);
       if (student) {
         studentId = student.id;
       }
@@ -262,10 +268,11 @@ export class FirebaseService {
   private async createOrFindStudent(
     response: SurveyResponse, 
     questions: SurveyQuestion[], 
-    groupId: string
+    groupId: string,
+    surveyCreatorUserId: string
   ): Promise<Student | null> {
     try {
-      // Find name-related questions
+      // Find name-related questions (questions are already sorted by creation date)
       const nameQuestions = questions.filter(q => 
         q.type === 'text' && 
         (q.question.toLowerCase().includes('name') || 
@@ -278,18 +285,30 @@ export class FirebaseService {
         return null;
       }
 
-      // Extract name from response
-      let fullName = '';
-      for (const nameQuestion of nameQuestions) {
-        const answer = response.answers.find(a => a.questionId === nameQuestion.id);
-        if (answer && typeof answer.value === 'string') {
-          fullName = answer.value.trim();
-          break;
-        }
+      // Use the FIRST (earliest created) name question for student creation
+      // Since questions are sorted by createdAt, index 0 is the first created
+      const firstNameQuestion = nameQuestions[0];
+      console.log('Found', nameQuestions.length, 'name questions. Using the FIRST (earliest created):');
+      console.log('  - Question:', firstNameQuestion.question);
+      console.log('  - Created at:', firstNameQuestion.createdAt);
+      console.log('  - Question ID:', firstNameQuestion.id);
+      
+      // Log all name questions for debugging
+      nameQuestions.forEach((q, index) => {
+        console.log(`  - Name question ${index + 1}: "${q.question}" (created: ${q.createdAt})`);
+      });
+
+      // Extract name from the first name question
+      const nameAnswer = response.answers.find(a => a.questionId === firstNameQuestion.id);
+      if (!nameAnswer || typeof nameAnswer.value !== 'string') {
+        console.log('No name found in first name question response');
+        return null;
       }
 
+      const fullName = nameAnswer.value.trim();
+
       if (!fullName) {
-        console.log('No name found in response');
+        console.log('No name found in first name question response');
         return null;
       }
 
@@ -297,6 +316,8 @@ export class FirebaseService {
       const nameParts = fullName.split(' ').filter(part => part.length > 0);
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || '';
+
+      console.log('Parsed name for student creation:', { firstName, lastName, fullName });
 
       // Check if student already exists in this group
       const existingStudent = await this.findStudentByName(firstName, lastName, groupId);
@@ -306,14 +327,26 @@ export class FirebaseService {
       }
 
       // Create new student
+      // Note: userId represents the survey creator (who created the survey)
+      // This is different from the survey submitter (who is answering the survey)
       const newStudent: Omit<Student, 'id'> = {
-        userId: response.userId,
+        userId: surveyCreatorUserId, // Survey creator who owns this survey
         firstName: firstName,
         lastName: lastName,
         groupId: groupId,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
+
+      console.log('Creating student with:', {
+        userId: surveyCreatorUserId,
+        firstName,
+        lastName,
+        groupId,
+        note: 'userId is the survey creator who owns this survey',
+        surveySubmitter: response.userId,
+        note2: 'surveySubmitter is the Google authenticated user who submitted the survey'
+      });
 
       const studentsCollectionRef = collection(this.db, 'students');
       const docRef = await addDoc(studentsCollectionRef, newStudent);

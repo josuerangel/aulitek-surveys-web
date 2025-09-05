@@ -49,6 +49,8 @@ export interface SurveyQuestion {
   maxRating?: number; // For rating questions
   minDate?: string; // For date questions
   maxDate?: string; // For date questions
+  createdAt?: string; // ISO string for creation date
+  updatedAt?: string; // ISO string for last update
 }
 
 // Survey response model
